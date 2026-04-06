@@ -1,7 +1,7 @@
 streamlit
+scikit-learn
 lightgbm
 shap
-scikit-learn
 joblib
 numpy
 pandas
