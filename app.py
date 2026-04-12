@@ -11,13 +11,13 @@ Repo only needs: app.py, requirements.txt, heart.csv
 import warnings
 warnings.filterwarnings("ignore")
 
+import math
 import numpy as np
 import pandas as pd
 import shap
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import plotly.graph_objects as go
 import streamlit as st
 
 
@@ -356,37 +356,56 @@ else:
     with col_g:
         st.markdown('<h3 class="section-header">Risk Probability Gauge</h3>',
                     unsafe_allow_html=True)
-        fig_gauge = go.Figure(go.Indicator(
-            mode="gauge+number+delta",
-            value=prob * 100,
-            number={"suffix": "%", "font": {"color": risk_color, "size": 40}},
-            delta={"reference": 50, "valueformat": ".1f",
-                   "increasing": {"color": "#ff4b4b"},
-                   "decreasing": {"color": "#00c852"}},
-            gauge={
-                "axis":  {"range": [0, 100], "tickcolor": "white"},
-                "bar":   {"color": risk_color},
-                "bgcolor": "#1e2130",
-                "borderwidth": 2, "bordercolor": "#333",
-                "steps": [
-                    {"range": [0,  30],  "color": "#00c85222"},
-                    {"range": [30, 65],  "color": "#ffa50022"},
-                    {"range": [65, 100], "color": "#ff4b4b22"},
-                ],
-                "threshold": {
-                    "line": {"color": "white", "width": 3},
-                    "thickness": 0.75,
-                    "value": THRESHOLD * 100,
-                },
-            },
-            title={"text": f"Decision threshold: {THRESHOLD:.2f}",
-                   "font": {"color": "#aaa", "size": 13}},
-        ))
-        fig_gauge.update_layout(
-            height=280, paper_bgcolor="#0f1117", font_color="white",
-            margin=dict(l=20, r=20, t=40, b=10)
-        )
-        st.plotly_chart(fig_gauge, use_container_width=True)
+
+        fig_gauge, ax = plt.subplots(figsize=(5, 3), facecolor="#0f1117")
+        ax.set_xlim(-1.3, 1.3)
+        ax.set_ylim(-0.3, 1.15)
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_facecolor("#0f1117")
+        fig_gauge.patch.set_facecolor("#0f1117")
+
+        # Background arc (dark grey)
+        theta_bg = np.linspace(0, math.pi, 200)
+        ax.plot(np.cos(theta_bg), np.sin(theta_bg),
+                color="#333333", linewidth=20, solid_capstyle="round")
+
+        # Coloured fill arc
+        theta_fill = np.linspace(0, math.pi * prob, 200)
+        if len(theta_fill) > 1:
+            ax.plot(np.cos(theta_fill), np.sin(theta_fill),
+                    color=risk_color, linewidth=20, solid_capstyle="round")
+
+        # Threshold marker
+        t_angle = math.pi * THRESHOLD
+        ax.plot([0.78 * math.cos(t_angle)], [0.78 * math.sin(t_angle)],
+                "w|", markersize=18, markeredgewidth=2.5)
+
+        # Needle
+        n_angle = math.pi * prob
+        ax.annotate("",
+            xy=(0.65 * math.cos(n_angle), 0.65 * math.sin(n_angle)),
+            xytext=(0, 0),
+            arrowprops=dict(arrowstyle="-|>", color="white", lw=2.5))
+        ax.plot(0, 0, "o", color="white", markersize=7, zorder=5)
+
+        # Probability text
+        ax.text(0, -0.22, f"{prob*100:.1f}%", ha="center", va="center",
+                fontsize=22, fontweight="bold", color=risk_color)
+        ax.text(0, -0.38, f"Threshold: {THRESHOLD:.2f}",
+                ha="center", fontsize=9, color="#aaaaaa")
+
+        # Min/max labels
+        ax.text(-1.15, -0.08, "0%",   ha="center", fontsize=8, color="#aaaaaa")
+        ax.text( 1.15, -0.08, "100%", ha="center", fontsize=8, color="#aaaaaa")
+
+        # Zone labels
+        ax.text(-0.75, 0.35, "LOW",  ha="center", fontsize=7, color="#00c852", alpha=0.7)
+        ax.text( 0.0,  0.85, "MOD",  ha="center", fontsize=7, color="#ffa500", alpha=0.7)
+        ax.text( 0.75, 0.35, "HIGH", ha="center", fontsize=7, color="#ff4b4b", alpha=0.7)
+
+        st.pyplot(fig_gauge, use_container_width=True)
+        plt.close()
 
     with col_m:
         st.markdown('<h3 class="section-header">Key Clinical Values</h3>',
